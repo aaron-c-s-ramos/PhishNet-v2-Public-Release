@@ -1,0 +1,106 @@
+# Publishes a release of the compiled extension that is committed in this
+# repository. This repository holds no source code: phishnet-<version>.zip is
+# the archive that the release workflow of the PhishNet v2 project builds.
+#
+# Two ways to start it:
+#  - push a tag such as v2.3.0 from your own computer,
+#  - run it by hand (Actions > Release > Run workflow) and type the version
+#    without the v, for example 2.3.0. The run then creates the tag on the
+#    commit that it checked out. Use this way from a Claude Code cloud
+#    session, because the credential of that session cannot push tags.
+#
+# Nothing is published unless phishnet-<version>.zip is in the repository, is
+# a valid archive, and holds a manifest.json with the same version.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, for example 2.3.0 (without the v). phishnet-<version>.zip must be in the repository.'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Check and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the commit to release
+        uses: actions/checkout@v4
+
+      - name: Decide the tag and check it against the archive
+        id: release
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            tag="v$INPUT_VERSION"
+          else
+            tag="$GITHUB_REF_NAME"
+          fi
+          version="${tag#v}"
+          if ! printf '%s' "$version" | grep -E -q '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Tag $tag is not v<major>.<minor>.<patch>. Type the version without the v." >&2
+            exit 1
+          fi
+
+          zip="phishnet-$version.zip"
+          if [ ! -f "$zip" ]; then
+            echo "$zip is not in the repository. Commit it first." >&2
+            exit 1
+          fi
+          unzip -tq "$zip"
+          manifest=$(unzip -p "$zip" manifest.json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).version))")
+          if [ "$manifest" != "$version" ]; then
+            echo "Tag $tag does not match the version $manifest in $zip/manifest.json." >&2
+            exit 1
+          fi
+
+          sha=$(sha256sum "$zip" | cut -d' ' -f1)
+          {
+            echo "tag=$tag"
+            echo "zip=$zip"
+            echo "sha=$sha"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing $tag from $GITHUB_SHA: $zip, SHA-256 $sha."
+
+      - name: Write the release notes
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          ZIP: ${{ steps.release.outputs.zip }}
+          SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          {
+            echo "The compiled PhishNet ${TAG} extension for Chromium browsers (Chrome, Edge, Brave, Opera, Vivaldi, version 116 or later)."
+            echo ""
+            echo "1. Download ${ZIP} below. Do not download \"Source code\"."
+            echo "2. Extract it into a folder that you keep."
+            echo "3. Open the extensions page of your browser, set Developer mode to on, click Load unpacked, and select the folder."
+            echo "4. On the PhishNet card, click Details, and set Allow in Incognito to on."
+            echo ""
+            echo "The manual in the repository gives each step with screenshots."
+            echo "SHA-256: ${SHA}"
+          } > release-notes.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ZIP: ${{ steps.release.outputs.zip }}
+        run: |
+          # gh release create makes the tag on --target when it does not exist
+          # yet, thus a run started by hand needs no tag push. It fails when a
+          # release for the tag already exists.
+          gh release create "$TAG" "$ZIP" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "PhishNet $TAG" \
+            --notes-file release-notes.md

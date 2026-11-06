@@ -9,6 +9,7 @@ This repository contains the public release of version 2.2.0:
 | [`phishnet-2.2.0.zip`](phishnet-2.2.0.zip) | The compiled extension, ready to load unpacked |
 | [`PhishNet-v2-Download-and-Installation-Manual.pdf`](PhishNet-v2-Download-and-Installation-Manual.pdf) | The full download and installation manual |
 | [`PhishNet-v2-Download-and-Installation-Manual.docx`](PhishNet-v2-Download-and-Installation-Manual.docx) | The same manual as a Word document |
+| [`.github/workflows/release.yml`](.github/workflows/release.yml) | Publishes a release (for maintainers) |
 
 ## How PhishNet examines an address
 
@@ -90,3 +91,13 @@ d83e3c47fa3a218784c78016748712f06efa6da22c2c5b8284dae1324f248d7f
 ```
 
 On Windows, open PowerShell in the download folder and type `Get-FileHash phishnet-2.2.0.zip`. On macOS or Linux, type `shasum -a 256 phishnet-2.2.0.zip`.
+
+## Publish a new release (maintainers)
+
+1. Put the new `phishnet-<version>.zip` from the PhishNet v2 project in the root of this repository. Update the manual and this README if necessary. Commit to `main`.
+2. Start the Release workflow in one of two ways:
+   - From your own computer, push a tag: `git tag v<version>`, then `git push origin v<version>`.
+   - In the web interface, open **Actions** > **Release** > **Run workflow**, select `main`, and type the version without the `v`, for example `2.3.0`. The run makes the tag itself.
+3. The run does a check of the ZIP file. The file must exist, must be a valid archive, and its `manifest.json` must have the same version. Then the run publishes the release with the ZIP file attached.
+
+The run stops when a release for that version already exists.
