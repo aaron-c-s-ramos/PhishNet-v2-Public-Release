@@ -1,6 +1,8 @@
 # Publishes a release of the compiled extension that is committed in this
 # repository. This repository holds no source code: phishnet-<version>.zip is
-# the archive that the release workflow of the PhishNet v2 project builds.
+# the archive that the release workflow of the PhishNet v2 project builds, and
+# phishnet-<version>-firefox.xpi (optional) is the Firefox package that Mozilla
+# signed for self-distribution.
 #
 # Two ways to start it:
 #  - push a tag such as v2.3.0 from your own computer,
@@ -65,10 +67,32 @@ jobs:
           fi
 
           sha=$(sha256sum "$zip" | cut -d' ' -f1)
+
+          # The Firefox package is optional. When it is present, it must be a
+          # valid archive with the same version and a Mozilla signature.
+          xpi="phishnet-$version-firefox.xpi"
+          xsha=""
+          if [ -f "$xpi" ]; then
+            unzip -tq "$xpi"
+            xversion=$(unzip -p "$xpi" manifest.json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).version))")
+            if [ "$xversion" != "$version" ]; then
+              echo "Tag $tag does not match the version $xversion in $xpi/manifest.json." >&2
+              exit 1
+            fi
+            if ! unzip -l "$xpi" | grep -q 'META-INF/mozilla.rsa'; then
+              echo "$xpi has no Mozilla signature (META-INF/mozilla.rsa)." >&2
+              exit 1
+            fi
+            xsha=$(sha256sum "$xpi" | cut -d' ' -f1)
+          else
+            xpi=""
+          fi
           {
             echo "tag=$tag"
             echo "zip=$zip"
             echo "sha=$sha"
+            echo "xpi=$xpi"
+            echo "xsha=$xsha"
           } >> "$GITHUB_OUTPUT"
           echo "Releasing $tag from $GITHUB_SHA: $zip, SHA-256 $sha."
 
@@ -77,6 +101,8 @@ jobs:
           TAG: ${{ steps.release.outputs.tag }}
           ZIP: ${{ steps.release.outputs.zip }}
           SHA: ${{ steps.release.outputs.sha }}
+          XPI: ${{ steps.release.outputs.xpi }}
+          XSHA: ${{ steps.release.outputs.xsha }}
         run: |
           {
             echo "The compiled PhishNet ${TAG} extension for Chromium browsers (Chrome, Edge, Brave, Opera, Vivaldi, version 116 or later)."
@@ -88,6 +114,11 @@ jobs:
             echo ""
             echo "The manual in the repository gives each step with screenshots."
             echo "SHA-256: ${SHA}"
+            if [ -n "$XPI" ]; then
+              echo ""
+              echo "Firefox 140 or later: download ${XPI} below. In Firefox, open about:addons, click the gear icon, click Install Add-on From File, and select the file. Mozilla signed this package, thus Firefox keeps it after a restart."
+              echo "SHA-256: ${XSHA}"
+            fi
           } > release-notes.md
 
       - name: Publish the release
@@ -95,11 +126,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
           ZIP: ${{ steps.release.outputs.zip }}
+          XPI: ${{ steps.release.outputs.xpi }}
         run: |
           # gh release create makes the tag on --target when it does not exist
           # yet, thus a run started by hand needs no tag push. It fails when a
           # release for the tag already exists.
-          gh release create "$TAG" "$ZIP" \
+          gh release create "$TAG" "$ZIP" ${XPI:+"$XPI"} \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "PhishNet $TAG" \
