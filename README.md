@@ -8,8 +8,10 @@ This repository contains the public release of version 2.3.0:
 | --- | --- |
 | [`phishnet-2.3.0.zip`](phishnet-2.3.0.zip) | The compiled extension for Chromium browsers, ready to load unpacked |
 | [`phishnet-2.3.0-firefox.xpi`](phishnet-2.3.0-firefox.xpi) | The extension for Firefox 140 or later, signed by Mozilla |
-| [`PhishNet-v2-Download-and-Installation-Manual.pdf`](PhishNet-v2-Download-and-Installation-Manual.pdf) | The full download and installation manual |
-| [`PhishNet-v2-Download-and-Installation-Manual.docx`](PhishNet-v2-Download-and-Installation-Manual.docx) | The same manual as a Word document |
+| [`PhishNet-v2-Detailed-Manual-Version.pdf`](PhishNet-v2-Detailed-Manual-Version.pdf) | The full download and installation manual |
+| [`PhishNet-v2-Detailed-Manual-Version.docx`](PhishNet-v2-Detailed-Manual-Version.docx) | The same detailed manual as a Word document |
+| [`PhishNet-v2-Simple-Manual-Version.pdf`](PhishNet-v2-Simple-Manual-Version.pdf) | The short download and installation manual |
+| [`PhishNet-v2-Simple-Manual-Version.docx`](PhishNet-v2-Simple-Manual-Version.docx) | The same simple manual as a Word document |
 | [`.github/workflows/release.yml`](.github/workflows/release.yml) | Publishes a release (for maintainers) |
 
 ## How PhishNet examines an address
@@ -107,7 +109,7 @@ On Windows, open PowerShell in the download folder and type `Get-FileHash phishn
 
 ## Publish a new release (maintainers)
 
-1. Put the new `phishnet-<version>.zip` from the PhishNet v2 project in the root of this repository. For Firefox, also put the signed `phishnet-<version>-firefox.xpi` from addons.mozilla.org there. Update the manual and this README if necessary. Commit to `main`.
+1. Put the new `phishnet-<version>.zip` from the PhishNet v2 project in the root of this repository. For Firefox, also put the signed `phishnet-<version>-firefox.xpi` from addons.mozilla.org there. Update the manuals and this README if necessary. Commit to `main`.
 2. Start the Release workflow in one of two ways:
    - From your own computer, push a tag: `git tag v<version>`, then `git push origin v<version>`.
    - In the web interface, open **Actions** > **Release** > **Run workflow**, select `main`, and type the version without the `v`, for example `2.4.0`. The run makes the tag itself.
